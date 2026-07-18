@@ -7,7 +7,7 @@ import com.cron.exception.DuplicateCronJobNameException;
 import com.cron.exception.InvalidCronExpressionException;
 import com.cron.model.CronJob;
 import com.cron.repository.CronJobRepository;
-import com.cron.scheduler.JobExecutorRegistry;
+import com.cron.executor.JobExecutorRegistry;
 import com.cron.scheduler.NextRunCalculator;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Service;

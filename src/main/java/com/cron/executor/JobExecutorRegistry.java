@@ -1,4 +1,4 @@
-package com.cron.scheduler;
+package com.cron.executor;
 
 import com.cron.model.CronJob;
 import com.cron.model.JobType;
