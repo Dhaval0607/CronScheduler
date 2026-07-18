@@ -7,10 +7,13 @@ import com.cron.exception.DuplicateCronJobNameException;
 import com.cron.exception.InvalidCronExpressionException;
 import com.cron.model.CronJob;
 import com.cron.repository.CronJobRepository;
+import com.cron.scheduler.JobExecutorRegistry;
+import com.cron.scheduler.NextRunCalculator;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -18,13 +21,20 @@ import java.util.List;
 public class CronJobService {
 
     private final CronJobRepository cronJobRepository;
+    private final NextRunCalculator nextRunCalculator;
+    private final JobExecutorRegistry executorRegistry;
 
-    public CronJobService(CronJobRepository cronJobRepository) {
+    public CronJobService(CronJobRepository cronJobRepository,
+                          NextRunCalculator nextRunCalculator,
+                          JobExecutorRegistry executorRegistry) {
         this.cronJobRepository = cronJobRepository;
+        this.nextRunCalculator = nextRunCalculator;
+        this.executorRegistry = executorRegistry;
     }
 
     public CronJobResponse create(CronJobRequest request) {
         validateCronExpression(request.cronExpression());
+        validatePayload(request);
 
         if (cronJobRepository.existsByNameIgnoreCase(request.name())) {
             throw new DuplicateCronJobNameException(request.name());
@@ -34,7 +44,10 @@ public class CronJobService {
         job.setName(request.name());
         job.setDescription(request.description());
         job.setCronExpression(request.cronExpression());
+        job.setJobType(request.jobType());
+        job.setPayload(request.payload());
         job.setEnabled(request.enabled() == null || request.enabled());
+        scheduleNextRun(job);
 
         return CronJobResponse.from(cronJobRepository.save(job));
     }
@@ -53,6 +66,7 @@ public class CronJobService {
 
     public CronJobResponse update(Long id, CronJobRequest request) {
         validateCronExpression(request.cronExpression());
+        validatePayload(request);
 
         CronJob job = getOrThrow(id);
 
@@ -65,7 +79,10 @@ public class CronJobService {
         job.setName(request.name());
         job.setDescription(request.description());
         job.setCronExpression(request.cronExpression());
+        job.setJobType(request.jobType());
+        job.setPayload(request.payload());
         job.setEnabled(request.enabled() == null || request.enabled());
+        scheduleNextRun(job);
         return CronJobResponse.from(job);
     }
 
@@ -77,6 +94,24 @@ public class CronJobService {
     private CronJob getOrThrow(Long id) {
         return cronJobRepository.findById(id)
                 .orElseThrow(() -> new CronJobNotFoundException(id));
+    }
+
+    /**
+     * Recomputes the next fire time from the current expression. A disabled job
+     * carries no next run, so it never shows up in the scheduler's due query.
+     */
+    private void scheduleNextRun(CronJob job) {
+        job.setNextRunAt(job.isEnabled()
+                ? nextRunCalculator.nextRunAfter(job.getCronExpression(), Instant.now())
+                : null);
+    }
+
+    /**
+     * Hands the payload to the executor that will eventually run it, so a bad
+     * recipient or URL is rejected by the API rather than discovered at fire time.
+     */
+    private void validatePayload(CronJobRequest request) {
+        executorRegistry.forType(request.jobType()).validate(request.payload());
     }
 
     private void validateCronExpression(String cronExpression) {

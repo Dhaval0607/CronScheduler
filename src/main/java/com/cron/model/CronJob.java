@@ -1,11 +1,17 @@
 package com.cron.model;
 
+import tools.jackson.databind.JsonNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.Instant;
 
 @Entity
@@ -26,6 +32,24 @@ public class CronJob {
 
     @Column(nullable = false)
     private boolean enabled = true;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "job_type", nullable = false)
+    private JobType jobType;
+
+    /**
+     * Type-specific configuration (recipient, URL, ...). Shape is owned and
+     * validated by the {@code JobExecutor} matching {@link #jobType}.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "payload", columnDefinition = "jsonb")
+    private JsonNode payload;
+
+    @Column(name = "next_run_at")
+    private Instant nextRunAt;
+
+    @Column(name = "last_run_at")
+    private Instant lastRunAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -71,6 +95,38 @@ public class CronJob {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public JobType getJobType() {
+        return jobType;
+    }
+
+    public void setJobType(JobType jobType) {
+        this.jobType = jobType;
+    }
+
+    public JsonNode getPayload() {
+        return payload;
+    }
+
+    public void setPayload(JsonNode payload) {
+        this.payload = payload;
+    }
+
+    public Instant getNextRunAt() {
+        return nextRunAt;
+    }
+
+    public void setNextRunAt(Instant nextRunAt) {
+        this.nextRunAt = nextRunAt;
+    }
+
+    public Instant getLastRunAt() {
+        return lastRunAt;
+    }
+
+    public void setLastRunAt(Instant lastRunAt) {
+        this.lastRunAt = lastRunAt;
     }
 
     public Instant getCreatedAt() {

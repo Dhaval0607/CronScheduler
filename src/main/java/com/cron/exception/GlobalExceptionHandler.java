@@ -17,7 +17,9 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, List.of(ex.getMessage()));
     }
 
-    @ExceptionHandler({DuplicateCronJobNameException.class, InvalidCronExpressionException.class})
+    @ExceptionHandler({DuplicateCronJobNameException.class,
+            InvalidCronExpressionException.class,
+            InvalidJobPayloadException.class})
     public ResponseEntity<ApiError> handleBadRequest(RuntimeException ex) {
         return build(HttpStatus.BAD_REQUEST, List.of(ex.getMessage()));
     }
