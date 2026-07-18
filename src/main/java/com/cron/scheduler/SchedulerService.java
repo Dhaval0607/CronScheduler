@@ -24,15 +24,18 @@ public class SchedulerService {
     private final JobClaimer jobClaimer;
     private final JobExecutorRegistry executorRegistry;
     private final ThreadPoolTaskExecutor jobExecutionPool;
+    private final JobRunRecorder jobRunRecorder;
     private final int batchSize;
 
     public SchedulerService(JobClaimer jobClaimer,
                             JobExecutorRegistry executorRegistry,
                             ThreadPoolTaskExecutor jobExecutionPool,
+                            JobRunRecorder jobRunRecorder,
                             @Value("${scheduler.batch-size:100}") int batchSize) {
         this.jobClaimer = jobClaimer;
         this.executorRegistry = executorRegistry;
         this.jobExecutionPool = jobExecutionPool;
+        this.jobRunRecorder = jobRunRecorder;
         this.batchSize = batchSize;
     }
 
@@ -64,6 +67,8 @@ public class SchedulerService {
     }
 
     private void runSafely(CronJob job) {
+        Instant startedAt = Instant.now();
+        RuntimeException failure = null;
         try {
             executorRegistry.forJob(job).execute(job);
         } catch (RuntimeException e) {
@@ -71,8 +76,20 @@ public class SchedulerService {
             // silently. The schedule has already been advanced, so one bad job
             // neither stalls the batch nor gets retried in a tight loop.
             // This also absorbs a missing executor for an unknown job type.
+            failure = e;
             log.error("Job id={} name={} type={} failed",
                     job.getId(), job.getName(), job.getJobType(), e);
+        }
+        recordRun(job, startedAt, failure);
+    }
+
+    private void recordRun(CronJob job, Instant startedAt, RuntimeException failure) {
+        try {
+            jobRunRecorder.record(job, startedAt, Instant.now(), failure);
+        } catch (RuntimeException e) {
+            // History is diagnostic, not load-bearing: a failed write must not
+            // turn a successful job into a failed one.
+            log.error("Failed to record run history for job id={}", job.getId(), e);
         }
     }
 }
