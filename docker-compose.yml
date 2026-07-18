@@ -1,0 +1,24 @@
+# Explicit project name: the directory name would otherwise collide with the
+# unrelated ~/cron-scheduler compose project and adopt its containers.
+name: cron-sched-v2
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cron-sched-db
+    environment:
+      POSTGRES_DB: cronscheduler
+      POSTGRES_USER: cronscheduler
+      POSTGRES_PASSWORD: cronscheduler
+    ports:
+      - "5434:5432"
+    volumes:
+      - cron-sched-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cronscheduler -d cronscheduler"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  cron-sched-pgdata:
