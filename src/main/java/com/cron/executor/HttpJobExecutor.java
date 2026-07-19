@@ -14,6 +14,7 @@ import org.springframework.web.client.RestClient;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Calls an outbound HTTP endpoint. The RestClient carries explicit timeouts
@@ -33,10 +34,26 @@ public class HttpJobExecutor implements JobExecutor {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Spring's HttpMethod is not an enum: valueOf() mints an instance for any
+     * string rather than throwing, so unknown verbs have to be rejected against
+     * an explicit allowlist.
+     */
+    private static final Set<HttpMethod> SUPPORTED_METHODS = Set.of(
+            HttpMethod.GET, HttpMethod.POST, HttpMethod.PUT,
+            HttpMethod.PATCH, HttpMethod.DELETE, HttpMethod.HEAD, HttpMethod.OPTIONS);
+
     public record HttpPayload(String url, String method, Map<String, String> headers, JsonNode body) {
 
         HttpMethod resolvedMethod() {
-            return method == null || method.isBlank() ? HttpMethod.POST : HttpMethod.valueOf(method.toUpperCase());
+            if (method == null || method.isBlank()) {
+                return HttpMethod.POST;
+            }
+            HttpMethod resolved = HttpMethod.valueOf(method.toUpperCase());
+            if (!SUPPORTED_METHODS.contains(resolved)) {
+                throw new IllegalArgumentException("unsupported method " + method);
+            }
+            return resolved;
         }
     }
 
