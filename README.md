@@ -215,6 +215,3 @@ Deliberate scope cuts, not oversights:
   briefly looks like it already ran. `job_runs` is the accurate record.
 - **`job_runs` is never pruned.** A job on `*/10 * * * * *` writes ~8,600 rows
   per day.
-- **Schema is managed by `ddl-auto=update`**, which cannot add a `NOT NULL`
-  column to a table with existing rows. A real migration tool (Flyway/Liquibase)
-  is the right answer before this runs anywhere shared.
