@@ -74,9 +74,7 @@ class SchedulerServiceTest {
         CronJob job = job();
         when(claimer.claimDueJobs(any(), anyInt())).thenReturn(List.of(job));
         when(registry.forJob(job)).thenReturn(executor);
-
         scheduler.pollDueJobs();
-
         verify(recorder).record(eq(job), any(Instant.class), any(Instant.class), isNull());
     }
 
